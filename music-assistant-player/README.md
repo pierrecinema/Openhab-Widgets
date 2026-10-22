@@ -2,7 +2,7 @@
 
 [English](#english) · [Deutsch](#deutsch)
 
-<img src="screenshot.jpg" alt="Music Assistant Player widget" width="380">
+<img src="screenshot.jpg" alt="Music Assistant Player widget" width="260"> <img src="screenshot-dark.png" alt="Dark theme / Dunkles Design" width="300"> <img src="screenshot-search.png" alt="Search / Suche" width="290">
 
 ---
 
