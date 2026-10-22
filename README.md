@@ -6,7 +6,7 @@ Custom widgets for the openHAB Main UI · Eigene Widgets für die openHAB Main U
 |---|---|---|
 | [Music Assistant Player](music-assistant-player/) | Now-playing card for Music Assistant: background follows the cover, scrolling text, player selection, search and quick picks | „Jetzt läuft“-Karte für Music Assistant: Hintergrund passend zum Cover, Lauftext, Player-Auswahl, Suche und Schnellwahl |
 
-<img src="music-assistant-player/screenshot.jpg" alt="Music Assistant Player" width="300">
+<img src="music-assistant-player/screenshot.jpg" alt="Music Assistant Player" width="260"> <img src="music-assistant-player/screenshot-dark.png" alt="Dark theme / Dunkles Design" width="300"> <img src="music-assistant-player/screenshot-search.png" alt="Search / Suche" width="290">
 
 ## Installation
 
