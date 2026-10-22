@@ -1,0 +1,546 @@
+uid: ma_nowplaying
+tags:
+  - musicassistant
+props:
+  parameterGroups: []
+  parameters:
+    - name: player
+      label: Standard-Player
+      description: Equipment-Gruppe des Players, der beim Öffnen angezeigt wird (z.B. MA_Wohnzimmer)
+      type: TEXT
+      context: item
+      required: true
+    - name: group
+      label: Player-Gruppe
+      description: Gruppe, deren Equipment-Mitglieder zur Auswahl stehen
+      type: TEXT
+      context: item
+      required: true
+    - name: defaultPlaylist
+      label: Standard-Playlist
+      description: Wird gestartet, wenn Play gedrückt wird und die Warteschlange leer ist (URI, z.B. library://playlist/1). Leer = nur Fortsetzen
+      type: TEXT
+    - name: quickPicks
+      label: Schnellwahl
+      description: "Einträge 'Name|URI', getrennt mit ';'"
+      type: TEXT
+component: f7-card
+config:
+  style:
+    position: relative
+    overflow: clip
+    border-radius: 18px
+    margin: 0
+    max-width: 960px
+    margin-left: auto
+    margin-right: auto
+    background: "#222"
+    color: white
+  stylesheet: >
+    @keyframes ma-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .ma-mq { overflow: hidden; white-space: nowrap; width: 100%; }
+    .ma-mq-run { display: inline-flex; animation-name: ma-marquee; animation-timing-function: linear; animation-iteration-count: infinite; }
+    .ma-mq-run span { padding-right: 5em; }
+    .ma-mq-static { display: block; text-align: center; overflow: hidden; text-overflow: ellipsis; }
+    .ma-ctrl { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; color: white !important; }
+    .ma-ctrl:hover { background: rgba(255,255,255,0.12); }
+    .ma-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 10px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25); color: white !important; font-size: 13px; }
+    .ma-chip.ma-sel { background: rgba(255,255,255,0.85); color: #222 !important; }
+    .ma-row { display: flex !important; align-items: center; gap: 12px; padding: 6px 4px; border-radius: 8px; color: white !important; text-align: left; }
+    .ma-row:hover { background: rgba(255,255,255,0.12); }
+    .ma-search input { width: 100%; color: white !important; caret-color: white; background: rgba(255,255,255,0.12) !important; border: 1px solid rgba(255,255,255,0.35) !important; border-radius: 10px; padding: 8px 12px; font-size: 15px; outline: none; }
+    .ma-search input::placeholder { color: rgba(255,255,255,0.6); }
+slots:
+  default:
+    # Hintergrund: unscharf vergrößertes Cover -> übernimmt automatisch die Coverfarben
+    - component: oh-image
+      config:
+        item: =(vars.mp || props.player) + '_AlbumArt'
+        style:
+          position: absolute
+          inset: -80px
+          width: calc(100% + 160px)
+          height: calc(100% + 160px)
+          object-fit: cover
+          filter: blur(70px) saturate(1.5)
+          transform: scale(1.3)
+    # Abdunklung für Lesbarkeit
+    - component: div
+      config:
+        style:
+          position: absolute
+          inset: 0
+          background: linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.30) 55%, rgba(0,0,0,0.55) 100%)
+    # Inhalt
+    - component: div
+      config:
+        style:
+          position: relative
+          z-index: 1
+          display: flex
+          flex-direction: column
+          align-items: center
+          padding: 16px 24px 20px
+          gap: 10px
+          text-shadow: 0 1px 6px rgba(0,0,0,0.45)
+      slots:
+        default:
+          # Kopfzeile: Status links, Power rechts
+          - component: div
+            config:
+              style:
+                display: flex
+                width: 100%
+                justify-content: space-between
+                align-items: center
+            slots:
+              default:
+                - component: div
+                  config:
+                    content: "=items[(vars.mp || props.player) + '_State'].state === 'playing' ? '● spielt' : (items[(vars.mp || props.player) + '_State'].state === 'paused' ? '❚❚ pausiert' : '■ gestoppt')"
+                    style:
+                      font-size: 13px
+                      opacity: 0.85
+                      padding: 4px 10px
+                      border-radius: 8px
+                      background: rgba(0,0,0,0.25)
+                - component: div
+                  config:
+                    style:
+                      display: flex
+                      gap: 4px
+                  slots:
+                    default:
+                      - component: oh-link
+                        config:
+                          class:
+                            - ma-ctrl
+                          iconF7: "=vars.showSearch ? 'xmark' : 'search'"
+                          iconSize: 22
+                          action: variable
+                          actionVariable: showSearch
+                          actionVariableValue: =!vars.showSearch
+                      - component: oh-link
+                        config:
+                          class:
+                            - ma-ctrl
+                          iconF7: power
+                          iconSize: 22
+                          action: toggle
+                          actionItem: =(vars.mp || props.player) + '_Power'
+                          actionCommand: "ON"
+                          actionCommandAlt: "OFF"
+                          style:
+                            opacity: "=items[(vars.mp || props.player) + '_Power'].state === 'ON' ? 1 : 0.45"
+          # Suche (über die Regel ma_search_play)
+          - component: div
+            config:
+              visible: =vars.showSearch === true
+              style:
+                width: 100%
+                background: rgba(0,0,0,0.35)
+                border-radius: 14px
+                padding: 10px
+                box-sizing: border-box
+            slots:
+              default:
+                - component: div
+                  config:
+                    style:
+                      display: flex
+                      align-items: center
+                      gap: 6px
+                  slots:
+                    default:
+                      - component: oh-input
+                        config:
+                          class:
+                            - ma-search
+                          variable: maQuery
+                          type: text
+                          placeholder: Playlist, Titel, Künstler oder Radio suchen …
+                          style:
+                            flex: 1
+                      - component: oh-link
+                        config:
+                          class:
+                            - ma-ctrl
+                          iconF7: search
+                          iconSize: 20
+                          action: command
+                          actionItem: MA_Search_Query
+                          actionCommand: "=vars.maQuery || ' '"
+                - component: div
+                  config:
+                    visible: =items.MA_Search_Results.state === '"suche"'
+                    content: Suche läuft …
+                    style:
+                      padding: 10px 4px
+                      opacity: 0.8
+                - component: div
+                  config:
+                    visible: =items.MA_Search_Results.state === '[]'
+                    content: Keine Treffer
+                    style:
+                      padding: 10px 4px
+                      opacity: 0.8
+                - component: div
+                  config:
+                    style:
+                      max-height: 320px
+                      overflow-y: auto
+                      margin-top: 6px
+                  slots:
+                    default:
+                      - component: oh-repeater
+                        config:
+                          for: r
+                          sourceType: array
+                          in: "=('' + items.MA_Search_Results.state).indexOf('[') === 0 ? JSON.parse(items.MA_Search_Results.state) : []"
+                          fragment: true
+                        slots:
+                          default:
+                            - component: oh-link
+                              config:
+                                class:
+                                  - ma-row
+                                action: command
+                                actionItem: MA_Search_Play
+                                actionCommand: =(vars.mp || props.player) + '|' + loop.r.u
+                              slots:
+                                default:
+                                  - component: div
+                                    config:
+                                      style:
+                                        width: 44px
+                                        height: 44px
+                                        flex: none
+                                        border-radius: 6px
+                                        background-color: rgba(255,255,255,0.15)
+                                        background-image: "=loop.r.i ? 'url(' + loop.r.i + ')' : 'none'"
+                                        background-size: cover
+                                        background-position: center
+                                  - component: div
+                                    config:
+                                      style:
+                                        flex: 1
+                                        min-width: 0
+                                    slots:
+                                      default:
+                                        - component: div
+                                          config:
+                                            content: =loop.r.n
+                                            style:
+                                              font-weight: 600
+                                              white-space: nowrap
+                                              overflow: hidden
+                                              text-overflow: ellipsis
+                                        - component: div
+                                          config:
+                                            content: =loop.r.s
+                                            style:
+                                              font-size: 12px
+                                              opacity: 0.75
+                                              white-space: nowrap
+                                              overflow: hidden
+                                              text-overflow: ellipsis
+                                  - component: f7-icon
+                                    config:
+                                      f7: play_circle
+                                      size: 26
+          # Cover
+          - component: oh-image
+            config:
+              item: =(vars.mp || props.player) + '_AlbumArt'
+              style:
+                width: min(400px, 75vw)
+                aspect-ratio: 1 / 1
+                object-fit: cover
+                border-radius: 12px
+                box-shadow: 0 12px 40px rgba(0,0,0,0.45)
+                background-color: rgba(255,255,255,0.08)
+                margin: 6px 0 10px
+          # Titel (scrollt, wenn zu lang)
+          - component: div
+            config:
+              class:
+                - ma-mq
+              style:
+                font-size: 28px
+                font-weight: 700
+            slots:
+              default:
+                - component: div
+                  config:
+                    class: "=('' + items[(vars.mp || props.player) + '_CurrentTitle'].state).length > 34 ? 'ma-mq-run' : 'ma-mq-static'"
+                    style:
+                      animation-duration: "=(('' + items[(vars.mp || props.player) + '_CurrentTitle'].state).length * 0.3) + 's'"
+                  slots:
+                    default:
+                      - component: span
+                        config:
+                          content: "=['NULL', 'UNDEF', '-'].includes(items[(vars.mp || props.player) + '_CurrentTitle'].state) ? 'Nichts wird abgespielt' : items[(vars.mp || props.player) + '_CurrentTitle'].state"
+                      - component: span
+                        config:
+                          visible: "=('' + items[(vars.mp || props.player) + '_CurrentTitle'].state).length > 34"
+                          content: =items[(vars.mp || props.player) + '_CurrentTitle'].state
+          # Album (scrollt, wenn zu lang)
+          - component: div
+            config:
+              class:
+                - ma-mq
+              visible: "=!['NULL', 'UNDEF', '-', ''].includes(items[(vars.mp || props.player) + '_CurrentAlbum'].state)"
+              style:
+                font-size: 20px
+                opacity: 0.8
+            slots:
+              default:
+                - component: div
+                  config:
+                    class: "=('' + items[(vars.mp || props.player) + '_CurrentAlbum'].state).length > 50 ? 'ma-mq-run' : 'ma-mq-static'"
+                    style:
+                      animation-duration: "=(('' + items[(vars.mp || props.player) + '_CurrentAlbum'].state).length * 0.25) + 's'"
+                  slots:
+                    default:
+                      - component: span
+                        config:
+                          content: "=('' + items[(vars.mp || props.player) + '_CurrentAlbum'].state)"
+                      - component: span
+                        config:
+                          visible: "=('' + items[(vars.mp || props.player) + '_CurrentAlbum'].state).length > 50"
+                          content: "=('' + items[(vars.mp || props.player) + '_CurrentAlbum'].state)"
+          # Künstler
+          - component: div
+            config:
+              content: "=['NULL', 'UNDEF'].includes(items[(vars.mp || props.player) + '_CurrentArtist'].state) ? '' : items[(vars.mp || props.player) + '_CurrentArtist'].state"
+              style:
+                font-size: 20px
+                opacity: 0.8
+                text-align: center
+          # Fortschritt
+          - component: div
+            config:
+              style:
+                width: 100%
+                margin-top: 18px
+            slots:
+              default:
+                - component: div
+                  config:
+                    style:
+                      height: 4px
+                      width: 100%
+                      border-radius: 2px
+                      background: rgba(255,255,255,0.25)
+                      overflow: hidden
+                  slots:
+                    default:
+                      - component: div
+                        config:
+                          style:
+                            height: 100%
+                            background: white
+                            transition: width 1s linear
+                            width: "=Math.min(100, (Number.parseFloat(items[(vars.mp || props.player) + '_Elapsed'].state) || 0) / (Number.parseFloat(items[(vars.mp || props.player) + '_Duration'].state) || 1) * 100) + '%'"
+                - component: div
+                  config:
+                    style:
+                      display: flex
+                      justify-content: space-between
+                      font-size: 12px
+                      opacity: 0.8
+                      margin-top: 6px
+                  slots:
+                    default:
+                      - component: span
+                        config:
+                          content: "=items[(vars.mp || props.player) + '_Elapsed'].displayState || '--:--'"
+                      - component: span
+                        config:
+                          content: "=items[(vars.mp || props.player) + '_Duration'].displayState || '--:--'"
+          # Steuerung
+          - component: div
+            config:
+              style:
+                display: flex
+                width: 100%
+                justify-content: space-around
+                align-items: center
+                margin-top: 4px
+            slots:
+              default:
+                - component: oh-link
+                  config:
+                    class:
+                      - ma-ctrl
+                    iconF7: shuffle
+                    iconSize: 22
+                    action: toggle
+                    actionItem: =(vars.mp || props.player) + '_Shuffle'
+                    actionCommand: "ON"
+                    actionCommandAlt: "OFF"
+                    style:
+                      opacity: "=items[(vars.mp || props.player) + '_Shuffle'].state === 'ON' ? 1 : 0.55"
+                - component: oh-link
+                  config:
+                    class:
+                      - ma-ctrl
+                    iconF7: backward_end
+                    iconSize: 26
+                    action: command
+                    actionItem: =(vars.mp || props.player) + '_Control'
+                    actionCommand: PREVIOUS
+                - component: oh-link
+                  config:
+                    iconF7: "=items[(vars.mp || props.player) + '_State'].state === 'playing' ? 'pause_fill' : 'play_fill'"
+                    iconSize: 30
+                    action: command
+                    actionItem: "=props.defaultPlaylist && items[(vars.mp || props.player) + '_State'].state === 'idle' && ['NULL', 'UNDEF', ''].includes(items[(vars.mp || props.player) + '_CurrentTitle'].state) ? 'MA_Search_Play' : (vars.mp || props.player) + '_Control'"
+                    actionCommand: "=props.defaultPlaylist && items[(vars.mp || props.player) + '_State'].state === 'idle' && ['NULL', 'UNDEF', ''].includes(items[(vars.mp || props.player) + '_CurrentTitle'].state) ? (vars.mp || props.player) + '|' + props.defaultPlaylist : (items[(vars.mp || props.player) + '_State'].state === 'playing' ? 'PAUSE' : 'PLAY')"
+                    style:
+                      display: flex
+                      align-items: center
+                      justify-content: center
+                      width: 60px
+                      height: 60px
+                      border-radius: 50%
+                      background: rgba(255,255,255,0.92)
+                      color: "#222"
+                      box-shadow: 0 4px 16px rgba(0,0,0,0.3)
+                - component: oh-link
+                  config:
+                    class:
+                      - ma-ctrl
+                    iconF7: forward_end
+                    iconSize: 26
+                    action: command
+                    actionItem: =(vars.mp || props.player) + '_Control'
+                    actionCommand: NEXT
+                - component: oh-link
+                  config:
+                    class:
+                      - ma-ctrl
+                    iconF7: "=items[(vars.mp || props.player) + '_Repeat'].state === 'one' ? 'repeat_1' : 'repeat'"
+                    iconSize: 22
+                    action: command
+                    actionItem: =(vars.mp || props.player) + '_Repeat'
+                    actionCommand: "=items[(vars.mp || props.player) + '_Repeat'].state === 'all' ? 'one' : (items[(vars.mp || props.player) + '_Repeat'].state === 'one' ? 'off' : 'all')"
+                    style:
+                      opacity: "=['all', 'one'].includes(items[(vars.mp || props.player) + '_Repeat'].state) ? 1 : 0.55"
+          # Lautstärke
+          - component: div
+            config:
+              style:
+                display: flex
+                width: 100%
+                align-items: center
+                gap: 10px
+            slots:
+              default:
+                - component: oh-link
+                  config:
+                    class:
+                      - ma-ctrl
+                    iconF7: "=items[(vars.mp || props.player) + '_Mute'].state === 'ON' ? 'speaker_slash' : 'speaker_2'"
+                    iconSize: 20
+                    action: toggle
+                    actionItem: =(vars.mp || props.player) + '_Mute'
+                    actionCommand: "ON"
+                    actionCommandAlt: "OFF"
+                - component: oh-slider
+                  config:
+                    item: =(vars.mp || props.player) + '_Volume'
+                    min: 0
+                    max: 100
+                    step: 1
+                    releaseOnly: true
+                    color: white
+                    style:
+                      flex: 1
+                      --f7-range-bar-active-bg-color: white
+                      --f7-range-bar-bg-color: rgba(255,255,255,0.3)
+                      --f7-range-knob-color: white
+                - component: span
+                  config:
+                    content: "=('' + items[(vars.mp || props.player) + '_Volume'].state).replace('NULL', '-')"
+                    style:
+                      width: 30px
+                      text-align: right
+                      font-size: 13px
+          # Schnellwahl
+          - component: div
+            config:
+              visible: =!!props.quickPicks
+              style:
+                display: flex
+                flex-wrap: wrap
+                justify-content: center
+                gap: 8px
+            slots:
+              default:
+                - component: oh-repeater
+                  config:
+                    for: q
+                    sourceType: array
+                    in: "=('' + props.quickPicks).split(';')"
+                    fragment: true
+                  slots:
+                    default:
+                      - component: oh-link
+                        config:
+                          class:
+                            - ma-chip
+                          iconF7: music_note_list
+                          iconSize: 14
+                          text: =loop.q.split('|')[0]
+                          action: command
+                          actionItem: MA_Search_Play
+                          actionCommand: "=(vars.mp || props.player) + '|' + loop.q.split('|').slice(1).join('|')"
+          # Aktueller Player (Klick klappt die Auswahl auf)
+          - component: oh-repeater
+            config:
+              for: p
+              sourceType: itemsInGroup
+              groupItem: =props.group
+              filter: loop.p.name === (vars.mp || props.player)
+              fragment: true
+            slots:
+              default:
+                - component: oh-link
+                  config:
+                    class:
+                      - ma-chip
+                    iconF7: "=vars.showList ? 'chevron_down' : 'dot_radiowaves_left_right'"
+                    iconSize: 16
+                    text: =loop.p.label
+                    action: variable
+                    actionVariable: showList
+                    actionVariableValue: =!vars.showList
+          # Player-Auswahl
+          - component: div
+            config:
+              visible: =vars.showList === true
+              style:
+                display: flex
+                flex-wrap: wrap
+                justify-content: center
+                gap: 8px
+                padding-top: 6px
+            slots:
+              default:
+                - component: oh-repeater
+                  config:
+                    for: p
+                    sourceType: itemsInGroup
+                    groupItem: =props.group
+                    filter: loop.p.type === 'Group'
+                    fragment: true
+                  slots:
+                    default:
+                      - component: oh-link
+                        config:
+                          class: "=loop.p.name === (vars.mp || props.player) ? 'ma-chip ma-sel' : 'ma-chip'"
+                          text: "=(items[loop.p.name + '_State'].state === 'playing' ? '♪ ' : '') + loop.p.label"
+                          action: variable
+                          actionVariable: mp
+                          actionVariableValue: =loop.p.name
